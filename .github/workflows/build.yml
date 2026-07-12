@@ -17,14 +17,14 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'      # 项目要求 Node.js >= 18
-        cache: 'pnpm'
-    
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: '8'
-    
+        node-version: '20.x'
+
+    - name: Install pnpm globally
+      run: npm install -g pnpm@8.15.0
+
+    - name: Verify pnpm installation
+      run: pnpm --version
+
     - name: Install dependencies
       run: pnpm install
     
