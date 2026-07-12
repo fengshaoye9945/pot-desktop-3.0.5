@@ -2,10 +2,8 @@ name: Build and Package
 
 on:
   push:
-    branches: [ main, master ]  # 根据需要触发分支
-  pull_request:
     branches: [ main, master ]
-  workflow_dispatch:             # 允许手动触发
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,43 +16,28 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
-
-    - name: Install pnpm globally
+    
+    - name: Install pnpm
       run: npm install -g pnpm@8.15.0
-
-    - name: Verify pnpm installation
-      run: pnpm --version
-
+    
     - name: Install dependencies
       run: pnpm install
     
-    # 关键步骤：在构建前自动同步版本号
     - name: Sync version
       run: |
         $version = (Get-Content package.json | ConvertFrom-Json).version
-        Write-Host "Syncing version to $version"
-        # 更新 Cargo.toml
         (Get-Content src-tauri/Cargo.toml) -replace '^version = ".*"', "version = `"$version`"" | Set-Content src-tauri/Cargo.toml
-        Write-Host "Version synced successfully"
-      shell: pwsh
-    
-    # 可选：调试时查看版本信息
-    - name: Debug version info
-      run: |
-        Write-Host "=== package.json version ==="
-        Get-Content package.json | Select-String '"version"'
-        Write-Host "=== Cargo.toml version ==="
-        Get-Content src-tauri/Cargo.toml | Select-String '^version'
+        Write-Host "Version set to $version"
       shell: pwsh
     
     - name: Build Tauri app
       run: |
         $env:TAURI_PRIVATE_KEY=""
         $env:TAURI_KEY_PASSWORD=""
-        pnpm tauri build -b nsis,updater --target x86_64-pc-windows-msvc
+        # 正确的构建命令 - 只指定 nsis
+        pnpm tauri build -b nsis --target x86_64-pc-windows-msvc
       shell: pwsh
     
-    # 上传生成的安装包作为构建产物
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
