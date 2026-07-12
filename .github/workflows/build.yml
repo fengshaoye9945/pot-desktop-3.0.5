@@ -1,0 +1,64 @@
+name: Build and Package
+
+on:
+  push:
+    branches: [ main, master ]  # 根据需要触发分支
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:             # 允许手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'      # 项目要求 Node.js >= 18
+        cache: 'pnpm'
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: '8'
+    
+    - name: Install dependencies
+      run: pnpm install
+    
+    # 关键步骤：在构建前自动同步版本号
+    - name: Sync version
+      run: |
+        $version = (Get-Content package.json | ConvertFrom-Json).version
+        Write-Host "Syncing version to $version"
+        # 更新 Cargo.toml
+        (Get-Content src-tauri/Cargo.toml) -replace '^version = ".*"', "version = `"$version`"" | Set-Content src-tauri/Cargo.toml
+        Write-Host "Version synced successfully"
+      shell: pwsh
+    
+    # 可选：调试时查看版本信息
+    - name: Debug version info
+      run: |
+        Write-Host "=== package.json version ==="
+        Get-Content package.json | Select-String '"version"'
+        Write-Host "=== Cargo.toml version ==="
+        Get-Content src-tauri/Cargo.toml | Select-String '^version'
+      shell: pwsh
+    
+    - name: Build Tauri app
+      run: |
+        $env:TAURI_PRIVATE_KEY=""
+        $env:TAURI_KEY_PASSWORD=""
+        pnpm tauri build -b nsis,updater --target x86_64-pc-windows-msvc
+      shell: pwsh
+    
+    # 上传生成的安装包作为构建产物
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pot-installer
+        path: |
+          src-tauri/target/release/bundle/nsis/*.exe
+          src-tauri/target/release/bundle/updater/*.json
